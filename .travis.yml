@@ -7,3 +7,6 @@ go:
 matrix:
   allow_failures:
     - go: tip
+notifications:
+  email:
+    - raymond.rutjes@gmail.com

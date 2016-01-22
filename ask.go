@@ -12,12 +12,12 @@ var (
 )
 
 // Ask writes a question into the standard output and reads the answer from the
-// standard output.
+// standard input.
 func Ask(q string) (string, error) {
 	return Fask(q, out, in)
 }
 
-// Fask writes the question into to given writer and returns the read answer from the reader.
+// Fask writes the question into to given writer and returns the answer from the reader.
 func Fask(q string, w io.Writer, r io.Reader) (string, error) {
 	q += ": "
 	if _, err := w.Write([]byte(q)); err != nil {
