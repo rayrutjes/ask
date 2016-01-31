@@ -21,17 +21,17 @@ func (m *WriterMock) Write(p []byte) (n int, err error) {
 
 type ReaderMock struct {
 	mock.Mock
-	Answer []byte
 }
 
 func (m *ReaderMock) Read(p []byte) (n int, err error) {
 	args := m.Called(p)
-	err = args.Error(1)
-	if err == nil {
-		n = copy(p, m.Answer)
-		return n, nil
+	return args.Int(0), args.Error(1)
+}
+
+func runReadFunc(p []byte) func(mock.Arguments) {
+	return func(args mock.Arguments) {
+		copy(args.Get(0).([]uint8), p)
 	}
-	return args.Int(0), err
 }
 
 type ValidateHelperFuncs struct {
@@ -76,18 +76,6 @@ func TestFask(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAsk(t *testing.T) {
-	question := "question"
-	expectedAnswer := "answer"
-
-	out = new(bytes.Buffer)
-	in = bytes.NewBufferString("answer\n")
-
-	answer, err := Ask(question)
-	assert.Nil(t, err)
-	assert.Equal(t, expectedAnswer, answer)
-}
-
 func TestFaskWhile(t *testing.T) {
 	question := []byte("question: ")
 	validationMsg := []byte("failure\n")
@@ -97,12 +85,9 @@ func TestFaskWhile(t *testing.T) {
 	writerMock.On("Write", validationMsg).Return(len(validationMsg), nil).Once()
 	writerMock.On("Write", question).Return(len(question), nil).Once()
 
+	readAnswer := []byte("answer\n")
 	readerMock := new(ReaderMock)
-	readerMock.Answer = []byte("answer\n")
-
-	buffer := make([]byte, 4096)
-	readerMock.On("Read", buffer).Return(len(readerMock.Answer), nil).Twice()
-	readerMock.On("Read", buffer).Return(0, io.EOF).Once()
+	readerMock.On("Read", mock.AnythingOfType("[]uint8")).Return(len(readAnswer), nil).Run(runReadFunc(readAnswer)).Twice()
 
 	helper := &ValidateHelperFuncs{
 		FailsCount:               0,
@@ -111,11 +96,11 @@ func TestFaskWhile(t *testing.T) {
 	}
 
 	answer, err := FaskWhile("question", helper.counterReached, writerMock, readerMock)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "answer", answer)
-
 	writerMock.AssertExpectations(t)
+	readerMock.AssertExpectations(t)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "answer", answer)
 
 	// if write fails
 	helper = &ValidateHelperFuncs{
@@ -131,33 +116,47 @@ func TestFaskWhile(t *testing.T) {
 	assert.Empty(t, answer)
 }
 
-func TestAskWhile(t *testing.T) {
-	question := []byte("question: ")
-	validationMsg := []byte("failure\n")
+func TestFconfirm(t *testing.T) {
+	// invalid answer then confirmed.
+	question := []byte("question (y/n): ")
+	validationMsg := []byte("please confirm or infirm by typing 'y' or 'n'\n")
 
 	writerMock := new(WriterMock)
 	writerMock.On("Write", question).Return(len(question), nil).Once()
 	writerMock.On("Write", validationMsg).Return(len(validationMsg), nil).Once()
 	writerMock.On("Write", question).Return(len(question), nil).Once()
 
-	out = writerMock
-
+	invalidAnswer := []byte("invalid\n")
+	yesAnswer := []byte("y\n")
 	readerMock := new(ReaderMock)
-	readerMock.Answer = []byte("answer\n")
+	readerMock.On("Read", mock.AnythingOfType("[]uint8")).Return(len(invalidAnswer), nil).Run(runReadFunc(invalidAnswer)).Once()
+	readerMock.On("Read", mock.AnythingOfType("[]uint8")).Return(len(yesAnswer), nil).Run(runReadFunc(yesAnswer)).Once()
 
-	buffer := make([]byte, 4096)
-	readerMock.On("Read", buffer).Return(len(readerMock.Answer), nil).Twice()
-	readerMock.On("Read", buffer).Return(0, io.EOF).Once()
-
-	in = readerMock
-
-	helper := &ValidateHelperFuncs{
-		FailsCount:               0,
-		FailsCountBeforeValidate: 1,
-		Message:                  "failure",
-	}
-
-	answer, err := AskWhile("question", helper.counterReached)
+	confirmed, err := Fconfirm("question", writerMock, readerMock)
 	assert.Nil(t, err)
-	assert.Equal(t, "answer", answer)
+	assert.True(t, confirmed)
+	writerMock.AssertExpectations(t)
+	readerMock.AssertExpectations(t)
+
+	// infirmed.
+	writerMock = new(WriterMock)
+	writerMock.On("Write", question).Return(len(question), nil).Once()
+
+	noAnswer := []byte("n\n")
+	readerMock = new(ReaderMock)
+	readerMock.On("Read", mock.AnythingOfType("[]uint8")).Return(len(noAnswer), nil).Run(runReadFunc(noAnswer)).Once()
+
+	confirmed, err = Fconfirm("question", writerMock, readerMock)
+	assert.Nil(t, err)
+	assert.False(t, confirmed)
+	writerMock.AssertExpectations(t)
+	readerMock.AssertExpectations(t)
+
+	// if write fails.
+	brokenWriter := new(WriterMock)
+	brokenWriter.On("Write", question).Return(0, io.EOF)
+
+	confirmed, err = Fconfirm("question", brokenWriter, readerMock)
+	assert.Error(t, err)
+	assert.False(t, confirmed)
 }
