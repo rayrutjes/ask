@@ -76,7 +76,7 @@ func TestFask(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFaskWhile(t *testing.T) {
+func TestFwhile(t *testing.T) {
 	question := []byte("question: ")
 	validationMsg := []byte("failure\n")
 
@@ -95,7 +95,7 @@ func TestFaskWhile(t *testing.T) {
 		Message:                  "failure",
 	}
 
-	answer, err := FaskWhile("question", helper.counterReached, writerMock, readerMock)
+	answer, err := Fwhile("question", helper.counterReached, writerMock, readerMock)
 	writerMock.AssertExpectations(t)
 	readerMock.AssertExpectations(t)
 
@@ -111,7 +111,7 @@ func TestFaskWhile(t *testing.T) {
 	brokenWriter := new(WriterMock)
 	brokenWriter.On("Write", question).Return(0, io.EOF)
 
-	answer, err = FaskWhile("question", helper.counterReached, brokenWriter, readerMock)
+	answer, err = Fwhile("question", helper.counterReached, brokenWriter, readerMock)
 	assert.Error(t, err)
 	assert.Empty(t, answer)
 }

@@ -38,15 +38,15 @@ func Fask(q string, w io.Writer, r io.Reader) (string, error) {
 // when the validation fails.
 type ValidateFunc func(string) (bool, string)
 
-// AskWhile writes a question and returns the answer once the validation function
+// While writes a question and returns the answer once the validation function
 // returns true. The questions is written again on each failed validation pass.
-func AskWhile(q string, v ValidateFunc) (string, error) {
-	return FaskWhile(q, v, out, in)
+func While(q string, v ValidateFunc) (string, error) {
+	return Fwhile(q, v, out, in)
 }
 
-// FaskWhile writes a question and returns the answer once the validation function
+// Fwhile writes a question and returns the answer once the validation function
 // returns true. The questions is written again on each failed validation pass.
-func FaskWhile(q string, v ValidateFunc, w io.Writer, r io.Reader) (string, error) {
+func Fwhile(q string, v ValidateFunc, w io.Writer, r io.Reader) (string, error) {
 	for {
 		a, err := Fask(q, w, r)
 		if err != nil {
@@ -84,7 +84,7 @@ func infirmed(answer string) bool {
 // the users answers with "y" or "n". Returns a boolean value indicating if the user confirmed
 // or infirmed.
 func Fconfirm(question string, w io.Writer, r io.Reader) (bool, error) {
-	answer, err := FaskWhile(question+" (y/n)", confirmValidateFunc, w, r)
+	answer, err := Fwhile(question+" (y/n)", confirmValidateFunc, w, r)
 	if err != nil {
 		return false, err
 	}
