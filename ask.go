@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 var (
@@ -57,4 +58,43 @@ func FaskWhile(q string, v ValidateFunc, w io.Writer, r io.Reader) (string, erro
 		}
 		w.Write([]byte(msg + "\n"))
 	}
+}
+
+// confirmValidateFunc function that validates that the answer is y or n.
+var confirmValidateFunc = func(answer string) (bool, string) {
+	if !confirmed(answer) && !infirmed(answer) {
+		return false, "please confirm or infirm by typing 'y' or 'n'"
+	}
+	return true, ""
+}
+
+// confirmed returns true if the answer is Y or y.
+func confirmed(answer string) bool {
+	a := strings.ToLower(answer)
+	return strings.EqualFold(a, "y")
+}
+
+// infirmed returns true if the answer is N or n.
+func infirmed(answer string) bool {
+	a := strings.ToLower(answer)
+	return strings.EqualFold(a, "n")
+}
+
+// Fconfirm prompts the user with a yes/no question. Keeps prompting the question until
+// the users answers with "y" or "n". Returns a boolean value indicating if the user confirmed
+// or infirmed.
+func Fconfirm(question string, w io.Writer, r io.Reader) (bool, error) {
+	answer, err := FaskWhile(question+" (y/n)", confirmValidateFunc, w, r)
+	if err != nil {
+		return false, err
+	}
+
+	return confirmed(answer), nil
+}
+
+// Confirm prompts the user with a yes/no question. Keeps prompting the question until
+// the users answers with "y" or "n". Returns a boolean value indicating if the user confirmed
+// or infirmed. Question and answers are written and read back from standard output/input.
+func Confirm(question string) (bool, error) {
+	return Fconfirm(question, out, in)
 }
